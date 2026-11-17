@@ -115,7 +115,7 @@ function tableHTML(cfg) {
   const d = cfg.data;
   if (cfg.type === 'scatter') {
     let rows = '';
-    d.datasets.filter(ds => ds.type !== 'line').forEach(ds => ds.data.forEach(p => { rows += `<tr><td style="${sTd}">${esc(p.name)}</td><td style="${sTdEnd}">${p.x}</td><td style="${sTdEnd}">${p.y}</td></tr>`; }));
+    d.datasets.filter(ds => ds.type !== 'line').forEach(ds => ds.data.forEach(p => { rows += `<tr><td style="${sTd}">${esc(p.name)}</td><td style="${sTdEnd}">${p.tx ?? p.x}</td><td style="${sTdEnd}">${p.ty ?? p.y}</td></tr>`; }));
     const hd = cfg.tableHeads || {};
     return `<table style="${sTableBase}"><thead><tr><th style="${sTh}">Country</th><th style="${sThEnd}">${esc(hd.x || 'x')}</th><th style="${sThEnd}">${esc(hd.y || 'y')}</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
@@ -181,6 +181,14 @@ const FIXED = { 'Brazil': 0.56, 'Malawi': 0.14, 'United States of America': 0.92
 const IND = { consumer: 'Consumer AI use', api: 'API token volume' };
 const NORM = { pop: 'per resident', wap: 'per working-age resident', gdp: 'per unit of gross domestic product', gdppc: 'relative to GDP per capita' };
 const KSLOPE = { pop: 3.0, wap: 2.9, gdp: 1.0, gdppc: 0.6 };
+const COR = [
+  { id: 'internet', label: 'Population with access to the Internet', unit: '%', lo: 8, hi: 99, a: 0.85, sign: 1 },
+  { id: 'urban', label: 'Urban population', unit: '%', lo: 15, hi: 95, a: 0.6, sign: 1 },
+  { id: 'lrl', label: 'Low-resource language index', unit: '', lo: 0, hi: 1, a: 0.7, sign: -1 },
+  { id: 'phones', label: 'Population with smartphones', unit: '%', lo: 10, hi: 95, a: 0.8, sign: 1 },
+  { id: 'elec', label: 'Electrification rate', unit: '%', lo: 12, hi: 100, a: 0.75, sign: 1 },
+  { id: 'college', label: 'College graduates (adults)', unit: '%', lo: 1, hi: 50, a: 0.7, sign: 1 }
+];
 const GWA = ['Getting information','Working with computers','Thinking creatively','Analyzing data or information','Documenting and recording information','Communicating with people outside the organization','Training and teaching others','Making decisions and solving problems','Interpreting the meaning of information for others','Providing consultation and advice to others'];
 const GWA_W = [13, 9, 12, 6, 12, 2, 3, 7, 3, 24];   // roughly Claude.ai shares (Anthropic Economic Index)
 const IWA = ['Write material for artistic or commercial purposes','Program computer systems or production equipment','Interpret language, cultural, or religious information for others','Prepare informational or instructional materials','Analyze data to improve operations','Edit written materials or documents','Explain technical details of products or services','Explain regulations, policies, or procedures','Develop marketing or promotional materials','Advise others on healthcare or wellness issues'];
@@ -363,6 +371,128 @@ function renderMap(root) {
   root.querySelector('#map-legend').innerHTML = colors.map((c, i) =>
     `<span>${chip(c)}Decile ${i + 1}${i === 0 ? ' (lowest)' : i === 9 ? ' (highest)' : ''}</span>`).join('') +
     `<span>${chip(NODATA)}No data</span>`;
+
+  // Side scatter: API token volume decile against Consumer AI use decile, coloured as on the map.
+  // Countries sharing a decile pair are spread slightly within the cell; the table and tooltip keep the exact deciles.
+  const jit = s => (h(s) - 0.5) * 0.6;
+  const pts = countries.map(n => ({ tx: deciles.consumer[n], ty: deciles.api[n], x: deciles.consumer[n] + jit(n + 'x'), y: deciles.api[n] + jit(n + 'y'), name: n }));
+  const fit = fitLinear(pts.map(p => ({ x: p.tx, y: p.ty })));
+  setHead('c-scatter', `${IND.api} and ${IND.consumer} deciles`,
+    `Each dot is a country, coloured as on the map. Dots are spread slightly within each decile cell. Linear fit on deciles: R² = ${fmt2(fit.r2)}, r = ${fmt2(fit.r)}, n = ${pts.length}.`);
+  const scEl = document.getElementById('c-scatter');
+  scEl.querySelector('h3').style.fontSize = '1rem';
+  scEl.querySelector('h3').style.lineHeight = '1.3';
+  scEl.querySelector('.card-sub').style.fontSize = '0.8125rem';
+  decileScatter('c-scatter', {
+    pts, fit, xDecile: true,
+    dotColors: p => scale(deciles[ind][p.name]), dotBorder: ramp[ramp.length - 1] + 'AA',
+    color: MCOL.api, xColor: MCOL.consumer,
+    xTitle: `${IND.consumer} (decile)`, yTitle: `${IND.api} (decile)`,
+    heads: { x: `${IND.consumer} decile`, y: `${IND.api} decile` },
+    tip: c => ` ${c.raw.name}: consumer decile ${c.raw.tx}, API decile ${c.raw.ty}`
+  });
+}
+
+function corValue(n, c) {
+  let t = c.a * (score(n) - 0.05) / 0.9 + (1 - c.a) * h(n + c.id);
+  t = Math.min(1, Math.max(0, t));
+  if (c.sign < 0) t = 1 - t;
+  const v = c.lo + (c.hi - c.lo) * t;
+  return c.unit === '%' ? Math.round(v) : Math.round(v * 100) / 100;
+}
+
+const labelPlugin = {
+  id: 'pointLabels',
+  afterDatasetsDraw(chart) {
+    const meta = chart.getDatasetMeta(1); if (!meta || meta.hidden) return;
+    const ctx = chart.ctx; ctx.save(); ctx.font = "500 11px 'Open Sans', sans-serif"; ctx.fillStyle = INK;
+    meta.data.forEach((pt, i) => {
+      const name = chart.data.datasets[1].data[i].short;
+      const right = pt.x > chart.chartArea.right - 70;
+      ctx.textAlign = right ? 'right' : 'left';
+      ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.strokeText(name, pt.x + (right ? -11 : 11), pt.y + 4); ctx.fillText(name, pt.x + (right ? -11 : 11), pt.y + 4);
+    });
+    ctx.restore();
+  }
+};
+
+// Least-squares fit of the decile (y) on the comparator (x)
+function fitLinear(pts) {
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const mx = d3.mean(xs), my = d3.mean(ys);
+  const sxx = d3.sum(xs, v => (v - mx) ** 2), syy = d3.sum(ys, v => (v - my) ** 2), sxy = d3.sum(xs, (v, i) => (v - mx) * (ys[i] - my));
+  const b = sxy / sxx, a = my - b * mx, r = sxy / Math.sqrt(sxx * syy);
+  const x0 = d3.min(xs), x1 = d3.max(xs);
+  return { r, r2: r * r, n: pts.length, line: [{ x: x0, y: a + b * x0 }, { x: x1, y: a + b * x1 }] };
+}
+const fmt2 = v => (Math.round(v * 100) / 100).toFixed(2).replace('-', '\u2212');
+
+// "R² = 0.62" printed inside the plot area; the text comes from options.plugins.r2Label
+const r2Plugin = {
+  id: 'r2Label',
+  afterDatasetsDraw(chart) {
+    const o = chart.options.plugins && chart.options.plugins.r2Label; if (!o || !o.text) return;
+    const ctx = chart.ctx, a = chart.chartArea;
+    ctx.save(); ctx.font = "700 13px 'Open Sans', sans-serif";
+    const w = ctx.measureText(o.text).width + 16, hgt = 24;
+    const x = o.corner === 'tr' ? a.right - w - 8 : a.left + 8, y = a.top + 8;
+    ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fillRect(x, y, w, hgt);
+    ctx.strokeStyle = o.color || INK; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, hgt - 1);
+    ctx.fillStyle = INK; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(o.text, x + 8, y + hgt / 2 + 0.5);
+    ctx.restore();
+  }
+};
+
+const decileAxis = (text, color) => ({ min: 0.5, max: 10.5, afterBuildTicks: ax => { ax.ticks = d3.range(1, 11).map(value => ({ value })); }, ticks: { callback: v => Number.isInteger(v) ? v : '' }, title: { display: true, text, color, font: { size: 12, weight: '600' } } });
+
+// Decile scatter with a fitted trend line and R². Mock-profile countries are drawn as labelled dark diamonds, as on the map.
+function decileScatter(id, o) {
+  const prof = o.pts.filter(p => PROFILE[p.name]).map(p => Object.assign({ short: p.name === 'United States of America' ? 'United States' : p.name }, p));
+  const rest = o.pts.filter(p => !PROFILE[p.name]);
+  draw(id, {
+    type: 'scatter',
+    tableHeads: o.heads,
+    data: { datasets: [
+      { label: 'Countries', data: rest, order: 1, backgroundColor: o.dotColors ? rest.map(o.dotColors) : o.color + 'B3', borderColor: o.dotBorder || '#fff', borderWidth: 1, pointRadius: 4.5, pointHoverRadius: 6.5 },
+      { label: 'Mock profiles', data: prof, order: 0, backgroundColor: HILITE, borderColor: '#fff', borderWidth: 2, pointRadius: 7, pointHoverRadius: 9, pointStyle: 'rectRot' },
+      { type: 'line', label: 'Trend line', data: o.fit.line, order: 2, borderColor: INK, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0 }
+    ] },
+    options: {
+      plugins: {
+        legend: { display: false },
+        tooltip: { filter: it => it.dataset.type !== 'line', callbacks: { label: o.tip } },
+        r2Label: { text: `R² = ${fmt2(o.fit.r2)}`, corner: o.fit.r < 0 ? 'tr' : 'tl', color: o.color }
+      },
+      scales: {
+        x: o.xDecile ? decileAxis(o.xTitle, o.xColor) : { title: { display: true, text: o.xTitle, color: INK, font: { size: 12, weight: '600' } } },
+        y: decileAxis(o.yTitle, o.color)
+      }
+    },
+    plugins: [labelPlugin, r2Plugin]
+  });
+}
+
+// Comparisons: each core indicator's decile against the chosen comparator
+let cmpState = {};
+function renderComparisons(root) {
+  const norm = root.querySelector('#sel-norm-cmp').value, cor = COR.find(c => c.id === root.querySelector('#sel-cor').value);
+  const both = metricValues(norm);
+  const deciles = { consumer: indicatorDeciles(both.consumer), api: indicatorDeciles(both.api) };
+  cmpState = { norm, cor, deciles, fits: {} };
+  const xTitle = cor.label + (cor.unit ? ' (' + cor.unit + ')' : '');
+  ['consumer', 'api'].forEach(k => {
+    const pts = countries.map(n => ({ x: corValue(n, cor), y: deciles[k][n], name: n }));
+    const fit = fitLinear(pts);
+    cmpState.fits[k] = fit;
+    setHead('c-cmp-' + k, `${IND[k]} decile and ${cor.label.toLowerCase()}`,
+      `Each dot is a country. Linear fit on deciles: R² = ${fmt2(fit.r2)}, r = ${fmt2(fit.r)}, n = ${pts.length}. ${IND[k]} ${NORM[norm]}; decile 1 is the lowest group and decile 10 the highest.`);
+    decileScatter('c-cmp-' + k, {
+      pts, fit, color: MCOL[k],
+      xTitle, yTitle: `${IND[k]} (decile)`,
+      heads: { x: cor.label, y: `${IND[k]} decile` },
+      tip: c => ` ${c.raw.name}: ${c.raw.x}${cor.unit}, decile ${c.raw.y}`
+    });
+  });
 }
 
 function renderBenchmark(root, code, c, q) {
@@ -670,9 +800,8 @@ function renderCountry(root) {
   const chg = (kind, who) => { const sr = benchSeries(kind, who); return q > 0 ? { v: r1(100 * (sr[q] / sr[q - 1] - 1)), lvl: Math.round(sr[q]) } : { v: null, lvl: Math.round(sr[q]) }; };
   const signed = v => (v >= 0 ? '+' : '\u2212') + Math.abs(v).toFixed(1) + '%';
   const qcard = kind => {
-    const me = chg(kind, code), wd = chg(kind, 'World');
-    return [IND[kind], me.v == null ? 'n/a' : signed(me.v),
-      me.v == null ? `First quarter in the series. Growth Index ${me.lvl}` : `Growth Index. Index ${me.lvl}; world ${signed(wd.v)}`, MCOL[kind]];
+    const me = chg(kind, code);
+    return [IND[kind], me.v == null ? 'n/a' : signed(me.v), 'QoQ change in Growth Index', MCOL[kind]];
   };
   const cards = [
     qcard('consumer'),
@@ -856,6 +985,17 @@ function initModal(root) {
       copyText = `curl "https://api.ai-adoption-index.example/v1/indicators?indicator=${ind}&normalize=${norm}&period=2026Q3&format=json"`;
       aTitle.textContent = 'Access via API';
       aBody.innerHTML = `<p>Placeholder endpoint for the current map selection. The address is not real. Values are deciles (1 = lowest group, 10 = highest group), not exact ranks.</p><pre style="background:${T.gray100};border:1px solid ${T.gray200};border-radius:${T.radius};padding:0.75rem;font-size:0.8125rem;max-height:18rem;overflow:auto;white-space:pre-wrap;">${esc(copyText)}</pre><p style="margin-bottom:0.25rem;">Example response:</p><pre style="background:${T.gray100};border:1px solid ${T.gray200};border-radius:${T.radius};padding:0.75rem;font-size:0.8125rem;max-height:18rem;overflow:auto;white-space:pre-wrap;">${esc(JSON.stringify({ indicator: ind, normalize: norm, period: '2026Q3', unit: 'decile (1 = lowest, 10 = highest)', data: [{ country: 'BRA', value: deciles[ind]['Brazil'] }, { country: 'MWI', value: deciles[ind]['Malawi'] }, { country: 'USA', value: deciles[ind]['United States of America'] }] }, null, 2))}</pre>`;
+    } else if (kind === 'cmpcsv') {
+      const { cor: kc, norm: kn, deciles: kd, fits } = cmpState;
+      const text = `country,normalization,consumer_activity_decile,api_usage_decile,${kc.id}\n` + countries.slice().sort().map(n => `${csvCell(n)},${kn},${kd.consumer[n]},${kd.api[n]},${corValue(n, kc)}`).join('\n');
+      presentFile('Download .csv', `<p>Data behind the comparison with <strong>${esc(kc.label)}</strong>: ${countries.length} countries, indicator values as deciles (1 = lowest group, 10 = highest group). Fitted R² is ${fmt2(fits.consumer.r2)} for ${esc(IND.consumer)} and ${fmt2(fits.api.r2)} for ${esc(IND.api)}. Check the contents below, then download or copy the file.</p>`,
+        text, `ai-adoption-index_comparison_${kc.id}_${kn}.csv`);
+      return;
+    } else if (kind === 'cmpapi') {
+      const { cor: kc, norm: kn } = cmpState;
+      copyText = `curl "https://api.ai-adoption-index.example/v1/comparisons?compare=${kc.id}&normalize=${kn}&period=2026Q3&format=json"`;
+      aTitle.textContent = 'Access via API';
+      aBody.innerHTML = `<p>Placeholder endpoint for the current comparison. The address is not real. Indicator values are deciles (1 = lowest group, 10 = highest group), not exact ranks.</p><pre style="background:${T.gray100};border:1px solid ${T.gray200};border-radius:${T.radius};padding:0.75rem;font-size:0.8125rem;max-height:18rem;overflow:auto;white-space:pre-wrap;">${esc(copyText)}</pre>`;
     } else if (kind === 'mcp') {
       copyText = JSON.stringify({ mcpServers: { 'ai-adoption-index': { type: 'http', url: 'https://mcp.ai-adoption-index.example/mcp' } } }, null, 2);
       aTitle.textContent = 'Access via MCP (proposed)';
@@ -1492,9 +1632,12 @@ function chartDefaults() {
 
 function init(root) {
   if (root.querySelector('#qx-root')) { chartDefaults(); initQx(root); return; }   // the reimagined Questions page
-  const selInd = root.querySelector('#sel-ind'), selNorm = root.querySelector('#sel-norm');
+  const selInd = root.querySelector('#sel-ind'), selNorm = root.querySelector('#sel-norm'), selCor = root.querySelector('#sel-cor'), selNormCmp = root.querySelector('#sel-norm-cmp');
   const MAIN = !!root.querySelector('#world-map');   // the Questions page has no map, comparisons or country sections
   if (MAIN) {
+  selCor.innerHTML = COR.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+  selNormCmp.innerHTML = selNorm.innerHTML;
+
   features = topojson.feature(WORLD, WORLD.objects.countries).features.filter(f => !SKIP.includes(f.properties.name));
   countries = features.map(f => f.properties.name).filter(n => !NO_DATA.includes(n));
 
@@ -1536,7 +1679,9 @@ function init(root) {
 
   if (MAIN) {
   selInd.addEventListener('change', () => renderMap(root));
-  selNorm.addEventListener('change', () => renderMap(root));
+  selCor.addEventListener('change', () => renderComparisons(root));
+  // normalization is shared by the map and the Comparisons section: the two selectors stay in step
+  [[selNorm, selNormCmp], [selNormCmp, selNorm]].forEach(([from, to]) => from.addEventListener('change', () => { to.value = from.value; renderMap(root); renderComparisons(root); }));
   }
   [selCountry, selQ].forEach(s => s.addEventListener('change', () => renderCountry(root)));
   // the Jobs and skills question carries its own country and quarter selectors, kept in step with these
@@ -1578,7 +1723,7 @@ function init(root) {
   initTabs(root);
   initQuestionFrames(root);
 
-  if (MAIN) renderMap(root);
+  if (MAIN) { renderMap(root); renderComparisons(root); }
   renderCountry(root);
 }
 
