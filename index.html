@@ -65,12 +65,15 @@
       </div>
 
       <div style="display:flex;flex-wrap:wrap;align-items:stretch;gap:1.25rem;">
-        <div style="flex:1 1 100%;min-width:340px;background:#fff;border:1px solid var(--gray-91);border-top:1px solid var(--teal-60);border-radius:var(--radius-none);padding:1.25rem 1.5rem;box-shadow:var(--shadow-card);">
+        <div style="flex:2 1 0%;min-width:340px;background:#fff;border:1px solid var(--gray-91);border-top:1px solid var(--teal-60);border-radius:var(--radius-none);padding:1.25rem 1.5rem;box-shadow:var(--shadow-card);">
           <h3 id="map-title" style="font-size:1.15rem;color:var(--blue-12);margin:0;font-family:var(--font-display);"></h3>
           <p style="font-size:0.875rem;color:var(--gray-36);margin:0.15rem 0 0.75rem;">Countries are grouped into ten deciles for the selected indicator. Decile 1 is the lowest group and decile 10 the highest; no exact country rank is shown. Countries outlined in black have a mock profile below; click one to open it.</p>
           <div id="map" style="position:relative;background:#fff;"><div id="map-tip" style="position:absolute;pointer-events:none;background:#fff;border:1px solid var(--gray-91);border-radius:var(--radius-none);padding:0.4rem 0.65rem;font-size:0.8125rem;box-shadow:var(--shadow-dropdown);max-width:16rem;display:none;z-index:5;"></div></div>
           <div id="map-legend" style="display:flex;flex-wrap:wrap;gap:0.75rem;font-size:0.8125rem;align-items:center;margin-top:0.5rem;"></div>
           <p style="font-size:0.75rem;color:var(--gray-44);margin:0.5rem 0 0;">Illustrative data. Boundaries are Natural Earth placeholders, not cleared World Bank boundaries.</p>
+        </div>
+        <div style="flex:1 1 0%;min-width:260px;display:flex;">
+          <div id="c-scatter" data-cc="1" data-title="" data-sub="" data-h="200" style="flex:1;"></div>
         </div>
       </div>
 
@@ -87,8 +90,30 @@
 
     <section id="comparisons" style="border-top:1px solid var(--gray-91);max-width:none;padding:2.5rem 2rem;">
       <div style="max-width:1280px;margin:0 auto;">
-        <h2 style="font-family:var(--font-display);color:var(--blue-12);font-size:1.6rem;margin:0 0 0.5rem;">How to read the deciles</h2>
-        <p style="font-size:1rem;color:var(--gray-36);max-width:760px;margin:0;">The map groups countries by the selected indicator rather than comparing values with a world median or displaying precise ranks. In a published Index, deciles would be calculated from noise-aggregated values; the figures in this mock-up are illustrative.</p>
+        <h2 style="font-family:var(--font-display);color:var(--blue-12);font-size:1.6rem;margin:0 0 1.5rem;">Comparisons</h2>
+
+        <div style="background:#fff;border:1px solid var(--gray-91);border-top:1px solid var(--teal-60);border-radius:var(--radius-none);padding:1.25rem 1.5rem;margin-bottom:1.5rem;box-shadow:var(--shadow-card);display:flex;flex-wrap:wrap;gap:1rem;">
+          <div style="flex:1 1 320px;display:flex;flex-direction:column;gap:0.35rem;">
+            <label for="sel-cor" style="font-family:var(--font-display);font-weight:600;font-size:0.75rem;color:var(--gray-44);text-transform:uppercase;letter-spacing:1px;">Compare with</label>
+            <select id="sel-cor" style="border:1px solid var(--gray-91);border-radius:var(--radius-none);padding:0.55rem 0.75rem;font-size:0.9rem;color:var(--gray-36);background:var(--gray-97);"></select>
+          </div>
+          <div style="flex:1 1 220px;display:flex;flex-direction:column;gap:0.35rem;">
+            <label for="sel-norm-cmp" style="font-family:var(--font-display);font-weight:600;font-size:0.75rem;color:var(--gray-44);text-transform:uppercase;letter-spacing:1px;">Normalized by</label>
+            <select id="sel-norm-cmp" style="border:1px solid var(--gray-91);border-radius:var(--radius-none);padding:0.55rem 0.75rem;font-size:0.9rem;color:var(--gray-36);background:var(--gray-97);"></select>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:1.25rem;">
+          <div style="flex:1 1 460px;min-width:0;" id="c-cmp-consumer" data-cc="1" data-title="" data-sub="" data-h="380"></div>
+          <div style="flex:1 1 460px;min-width:0;" id="c-cmp-api" data-cc="1" data-title="" data-sub="" data-h="380"></div>
+        </div>
+        <p style="font-size:0.75rem;color:var(--gray-44);margin:0.5rem 0 0;">Illustrative data. In a published Index, deciles would be calculated from noise-aggregated values, so they show broad groups rather than precise ranks. Correlation is not causation.</p>
+
+        <div style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;margin-top:1.25rem;">
+          <span style="font-weight:500;margin-right:0.25rem;">Get this data:</span>
+          <x-import component-from-global-scope="WorldBankGroupDesignSystem_53b2b3.Button" variant="primary" size="sm" data-access="cmpcsv" hint-size="auto,40px">Download .csv</x-import>
+          <x-import component-from-global-scope="WorldBankGroupDesignSystem_53b2b3.Button" variant="inverse" size="sm" data-access="cmpapi" hint-size="auto,40px">Access via API</x-import>
+        </div>
       </div>
     </section>
 
@@ -322,7 +347,7 @@ class Component extends DCLogic {
   renderVals() {
     return {
       rootRef: (el) => { this.rootEl = el; },
-      navItems: [{ label: 'World map', href: '#world-map' }, { label: 'How to read the deciles', href: '#comparisons' }, { label: 'Country indicators', href: '#country-indicators' }, { label: 'Stakeholder questions', href: 'questions.html' }]
+      navItems: [{ label: 'World map', href: '#world-map' }, { label: 'Comparisons', href: '#comparisons' }, { label: 'Country indicators', href: '#country-indicators' }, { label: 'Stakeholder questions', href: 'questions.html' }]
     };
   }
 }
