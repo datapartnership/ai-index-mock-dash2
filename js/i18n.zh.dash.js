@@ -3,7 +3,7 @@
    Glossary: GWA 通用工作活动 · IWA 中间工作活动 · decile 十分位 · consumer AI use 消费者AI使用 · API token volume API词元用量 */
 I18N.add({
   /* ---- page intro and section text ---- */
-  "A quarterly view of consumer AI use and API token volumes across more than 190 economies, alongside labor-market context.": "按季度呈现190多个经济体的消费者AI使用和API词元用量，并附劳动力市场背景。",
+  "A quarterly view of consumer AI use and API token volumes across 148 economies, alongside labor-market context.": "按季度呈现148个经济体的消费者AI使用和API词元用量，并附劳动力市场背景。",
   "aggregate and the world. Each indicator has its own chart; 2025 Q1 = 100. These time series show change over time, not ranks.": "汇总值与全球水平。每项指标各有一张图表；2025年第1季度 = 100。这些时间序列反映的是随时间的变化，而非排名。",
   "Top 10 intermediate work activities by share of consumer AI activity": "按占消费者AI活动比例排列的前10项中间工作活动",
   "Each row shows how consumer AI activity in that industry divides among Work, Personal and Education use. The three use types sum to 100%; no work-activity breakdown is combined with this view.": "每一行显示该行业的消费者AI活动在工作、个人和教育用途之间的分布。三种用途合计为100%；此视图不与工作活动细分合并。",
