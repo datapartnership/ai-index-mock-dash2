@@ -7,9 +7,15 @@
 <title>Stakeholder Questions | Global AI Adoption Index</title>
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/design-system.css">
+<link rel="stylesheet" href="css/i18n.css">
 <link rel="stylesheet" href="css/questions.css">
 <!-- React is loaded by the dc runtime; point it at the local copies instead of the CDN -->
 <script>window.__resources = {"https://unpkg.com/react@18.3.1/umd/react.production.min.js": "js/vendor/react.v18.3.1.production.min.js", "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js": "js/vendor/react-dom.v18.3.1.production.min.js"};</script>
+<script src="js/i18n.js"></script>
+<script src="js/i18n.zh.ui.js"></script>
+<script src="js/i18n.zh.geo.js"></script>
+<script src="js/i18n.zh.dash.js"></script>
+<script src="js/i18n.zh.qx.js"></script>
 <script src="js/design-system.js"></script>
 <script src="js/vendor/d3.v7.9.2.min.js"></script>
 <script src="js/vendor/topojson-client.v3.1.0.min.js"></script>
@@ -25,11 +31,12 @@
 
 <div ref="{{ rootRef }}" style="min-height:100vh;background:var(--gray-97);font-family:var(--font-body);color:var(--gray-21);line-height:1.6;">
 
-  <div style="background:var(--orange-57);color:var(--blue-12);font-weight:500;font-size:0.9375rem;padding:0.5rem 1rem;text-align:center;">
-    Illustrative mock-up. Index figures and chart values are invented to show layout. Figures marked as published are real and linked to their source.
+  <div style="background:var(--orange-57);color:var(--blue-12);font-weight:500;font-size:0.9375rem;padding:0.5rem 1rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0.4rem 1.25rem;text-align:center;">
+    <span>Illustrative mock-up. Index figures and chart values are invented to show layout. Figures marked as published are real and linked to their source.</span>
+    <div class="lang-toggle" data-i18n-skip role="group" aria-label="Language"><button type="button" data-lang="en" lang="en" aria-pressed="true">English</button><button type="button" data-lang="zh" lang="zh-CN" aria-pressed="false">中文</button></div>
   </div>
 
-  <x-import component-from-global-scope="WorldBankGroupDesignSystem_53b2b3.GlobalNav" brand="Global AI Adoption Index" items="{{ navItems }}" style="position:sticky;top:0;z-index:100;" hint-size="100%,60px"></x-import>
+  <x-import component-from-global-scope="WorldBankGroupDesignSystem_53b2b3.GlobalNav" brand="{{ brand }}" items="{{ navItems }}" style="position:sticky;top:0;z-index:100;" hint-size="100%,60px"></x-import>
 
   <header id="top" style="background:var(--gray-97);border-bottom:1px solid var(--gray-91);">
     <div style="max-width:1280px;margin:0 auto;padding:2.5rem 2rem 2.25rem;">
@@ -91,7 +98,8 @@ class Component extends DCLogic {
   renderVals() {
     return {
       rootRef: (el) => { this.rootEl = el; },
-      navItems: [{ label: 'World map', href: 'index.html#world-map' }, { label: 'Comparisons', href: 'index.html#comparisons' }, { label: 'Country indicators', href: 'index.html#country-indicators' }, { label: 'Stakeholder questions', href: '#questions' }]
+      brand: I18N.t('Global AI Adoption Index'),
+      navItems: [{ label: I18N.t('World map'), href: 'index.html#world-map' }, { label: I18N.t('Comparisons'), href: 'index.html#comparisons' }, { label: I18N.t('Country indicators'), href: 'index.html#country-indicators' }, { label: I18N.t('Stakeholder questions'), href: '#questions' }]
     };
   }
 }

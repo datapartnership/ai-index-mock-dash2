@@ -54,11 +54,12 @@ function trend(key, start, end) {
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const pct = v => r1(v) + '%';
 function wrap(l, n) {
+  if (typeof l === 'string' && I18N.lang === 'zh') { l = I18N.t(l); if (I18N.isCJK(l)) return I18N.cjkWrap(l, n); }
   if (typeof l !== 'string' || l.length <= n) return l;
   const out = ['']; l.split(' ').forEach(w => { if ((out[out.length - 1] + ' ' + w).trim().length > n) out.push(w); else out[out.length - 1] = (out[out.length - 1] + ' ' + w).trim(); });
   return out;
 }
-const flat = l => Array.isArray(l) ? l.join(' ') : l;
+const flat = l => Array.isArray(l) ? l.join(I18N.lang === 'zh' && I18N.isCJK(l[0]) ? '' : ' ') : l;
 
 // ---------- inline-style fragments ----------
 const sTag = (bg, fg, dashed) => `display:inline-block;font-size:0.7rem;font-family:var(--font-display);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:0.2rem 0.55rem;border-radius:0;background:${bg};color:${fg};${dashed ? 'border:1px dashed ' + fg + ';' : ''}`;
@@ -124,6 +125,7 @@ function tableHTML(cfg) {
   return `<table style="${sTableBase}"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 function draw(id, cfg) {
+  cfg = I18N.chart(cfg);
   const el = document.getElementById(id);
   if (charts[id] && charts[id].config.type === cfg.type) {
     const ch = charts[id]; ch.data = cfg.data; ch.options = cfg.options; ch.update('none');
@@ -407,7 +409,7 @@ const labelPlugin = {
     const meta = chart.getDatasetMeta(1); if (!meta || meta.hidden) return;
     const ctx = chart.ctx; ctx.save(); ctx.font = "500 11px 'Open Sans', sans-serif"; ctx.fillStyle = INK;
     meta.data.forEach((pt, i) => {
-      const name = chart.data.datasets[1].data[i].short;
+      const name = I18N.t(chart.data.datasets[1].data[i].short);
       const right = pt.x > chart.chartArea.right - 70;
       ctx.textAlign = right ? 'right' : 'left';
       ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.strokeText(name, pt.x + (right ? -11 : 11), pt.y + 4); ctx.fillText(name, pt.x + (right ? -11 : 11), pt.y + 4);
@@ -1434,7 +1436,7 @@ function qxLineCfg(c, narrow) {
 }
 function qxBarCfg(c, narrow) {
   const hz = !!c.horizontal, st = !!c.stacked, tick = v => v + (c.tick != null ? c.tick : c.unit);
-  const lab = l => narrow && /^\d{4} Q\d$/.test(l) ? l.split(' ') : wrap(l, narrow ? (hz ? 15 : 11) : (hz ? 26 : 16));
+  const lab = l => narrow && /^\d{4} Q\d$/.test(l) && I18N.lang !== 'zh' ? l.split(' ') : wrap(l, narrow ? (hz ? 15 : 11) : (hz ? 26 : 16));
   return { type: 'bar', plugins: [qxEndLabels],
     data: { labels: c.labels.map(lab), datasets: c.series.map(s => ({ label: s.name, data: s.data, backgroundColor: Array.isArray(s.color) ? s.color.map(qxCol) : qxCol(s.color), borderRadius: 0, maxBarThickness: c.rowH ? 22 : hz ? (st ? 26 : 16) : 44, categoryPercentage: st ? 0.7 : 0.78, barPercentage: 0.92 })) },
     options: { indexAxis: hz ? 'y' : 'x', layout: { padding: hz ? { right: 34 } : { top: 20 } },
@@ -1444,7 +1446,7 @@ function qxBarCfg(c, narrow) {
 }
 const qxPtLabels = { id: 'qxPtLab', afterDatasetsDraw(ch, a, o) {
   if (!o.on) return; const ctx = ch.ctx, m = ch.getDatasetMeta(0); ctx.save(); ctx.font = '600 12px ' + Chart.defaults.font.family; ctx.fillStyle = INK; ctx.textBaseline = 'middle';
-  m.data.forEach((el, i) => { const p = ch.data.datasets[0].data[i], r = p.r || 6; if (p.al === 'T') { ctx.textAlign = 'right'; ctx.fillText(p.s || '', el.x + 4, el.y - r - 8); return; } ctx.textAlign = p.al === 'L' || el.x > ch.chartArea.right - 110 ? 'right' : 'left'; ctx.fillText(p.s || '', el.x + (ctx.textAlign === 'right' ? -r - 4 : r + 4), el.y); });
+  m.data.forEach((el, i) => { const p = ch.data.datasets[0].data[i], r = p.r || 6; if (p.al === 'T') { ctx.textAlign = 'right'; ctx.fillText(I18N.t(p.s || ''), el.x + 4, el.y - r - 8); return; } ctx.textAlign = p.al === 'L' || el.x > ch.chartArea.right - 110 ? 'right' : 'left'; ctx.fillText(I18N.t(p.s || ''), el.x + (ctx.textAlign === 'right' ? -r - 4 : r + 4), el.y); });
   ctx.restore(); } };
 function qxScatCfg(c, narrow) {
   const sized = c.pts.some(p => p.r);
@@ -1592,7 +1594,7 @@ function qxRender(root) {
   qxCharts.forEach(ch => ch.destroy()); qxCharts = [];
   if (qxSel < 0) return;
   const q = QX[qxSel], b = q.build();
-  const mk = (id, cc) => { const cv = root.querySelector('#' + id); if (!cv) return; const narrow = cv.parentElement.clientWidth < 520; qxCharts.push(new Chart(cv, cc.kind === 'line' ? qxLineCfg(cc, narrow) : cc.kind === 'scatter' ? qxScatCfg(cc, narrow) : qxBarCfg(cc, narrow))); };
+  const mk = (id, cc) => { const cv = root.querySelector('#' + id); if (!cv) return; const narrow = cv.parentElement.clientWidth < 520; qxCharts.push(new Chart(cv, I18N.chart(cc.kind === 'line' ? qxLineCfg(cc, narrow) : cc.kind === 'scatter' ? qxScatCfg(cc, narrow) : qxBarCfg(cc, narrow)))); };
   if (q.worked) { mk('qx-canvas', b.A); mk('qx-canvas2', b.B); mk('qx-canvas5', b.C); mk('qx-canvas6', b.D); } else { mk('qx-canvas', b.chart); if (b.sub) mk('qx-canvas3', b.sub.scat); if (b.chart2) mk('qx-canvas2', b.chart2); if (b.reg) mk('qx-canvas7', b.reg.chart); if (b.chart3) mk('qx-canvas8', b.chart3); }
 }
 function qxOpen(root, i) {
@@ -1619,7 +1621,7 @@ function initQx(root) {
 }
 
 function chartDefaults() {
-  Chart.defaults.font.family = "'Open Sans', system-ui, Arial, sans-serif";
+  Chart.defaults.font.family = I18N.lang === 'zh' ? "'Open Sans', system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" : "'Open Sans', system-ui, Arial, sans-serif";
   Chart.defaults.font.size = 13;
   Chart.defaults.color = INK;
   Chart.defaults.borderColor = T.gray100;

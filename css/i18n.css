@@ -1,0 +1,20 @@
+/* Language toggle and Chinese typography */
+.lang-toggle { display: inline-flex; flex: none; }
+.lang-toggle button {
+  font: inherit; font-size: 0.8125rem; font-weight: 600; line-height: 1.2;
+  min-height: 0; padding: 0.2rem 0.75rem; cursor: pointer;
+  color: var(--blue-12); background: transparent; border: 1px solid var(--blue-12); border-radius: 0;
+}
+.lang-toggle button + button { margin-left: -1px; }
+.lang-toggle button[aria-pressed="true"] { background: var(--blue-12); color: #fff; }
+.lang-toggle button:focus-visible { outline: 2px solid var(--blue-12); outline-offset: 2px; }
+
+/* The design-system fonts (Open Sans, Andes) have no Chinese glyphs: fall back to the system CJK fonts. */
+:root[lang="zh-CN"] {
+  --font-body: 'Open Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif;
+  --font-display: 'Andes', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif;
+  --font-display-bold: 'AndesBold', 'Andes', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif;
+}
+/* Wide letter-spacing and capitals are for Latin labels; they only spread Chinese characters apart. */
+:root[lang="zh-CN"] * { letter-spacing: normal !important; text-transform: none !important; }
+:root[lang="zh-CN"] body { line-height: 1.7; }
